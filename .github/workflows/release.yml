@@ -9,8 +9,8 @@ jobs:
   create-release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: taiki-e/create-gh-release-action@v1
+      - uses: actions/checkout@v3
+      - uses: taiki-e/create-gh-release-action@v1.7.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -23,7 +23,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
-      - uses: taiki-e/upload-rust-binary-action@v1.7.1
+      - uses: taiki-e/upload-rust-binary-action@v1.16.0
         with:
           bin: liveu_stats_bot
           tar: unix
