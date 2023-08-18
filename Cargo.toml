@@ -1,8 +1,8 @@
 [package]
 name = "liveu_stats_bot"
-version = "0.6.0"
-authors = ["Brian Spit <brian@715209.net>"]
-edition = "2021"
+version = "0.0.3"
+authors = ["Brian Spit <brian@715209.net> BighChiefRick"]
+edition = "2023"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
