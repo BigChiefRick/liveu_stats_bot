@@ -9,12 +9,22 @@ RUN apt-get update && apt-get upgrade -y
 # Install necessary dependencies
 RUN apt-get install -y wget tar
 
+# Create a directory for the application
+WORKDIR /app
+
 # Download and unpack the liveu_stats_bot release
 RUN wget https://github.com/BigChiefRick/liveu_stats_bot/releases/download/v0.0.2/liveu_stats_bot-x86_64-unknown-linux-gnu.tar.gz
 RUN tar -xzvf liveu_stats_bot-x86_64-unknown-linux-gnu.tar.gz
 
 # Make the binary executable
 RUN chmod +x liveu_stats_bot
+
+# Clean up the downloaded tar file
+RUN rm liveu_stats_bot-x86_64-unknown-linux-gnu.tar.gz
+
+# Set the working directory to /app (where the binary is located)
+# This ensures config.json will be created/read from the same directory
+WORKDIR /app
 
 # Create an entry point for the liveu_stats_bot
 ENTRYPOINT ["./liveu_stats_bot"]
