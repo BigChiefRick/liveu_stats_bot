@@ -1,0 +1,20 @@
+# Use the latest version of Ubuntu as a base image
+FROM ubuntu:latest
+
+# Set up environment variables, if any (you can add as needed)
+
+# Run system updates
+RUN apt-get update && apt-get upgrade -y
+
+# Install necessary dependencies
+RUN apt-get install -y wget tar
+
+# Download and unpack the liveu_stats_bot release
+RUN wget https://github.com/BigChiefRick/liveu_stats_bot/releases/download/v0.0.2/liveu_stats_bot-x86_64-unknown-linux-gnu.tar.gz
+RUN tar -xzvf liveu_stats_bot-x86_64-unknown-linux-gnu.tar.gz
+
+# Make the binary executable
+RUN chmod +x liveu_stats_bot
+
+# Create an entry point for the liveu_stats_bot
+ENTRYPOINT ["./liveu_stats_bot"]
