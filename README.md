@@ -1,10 +1,14 @@
 # LIVEU STATS BOT
 
-A chat bot that makes it easier to see the current status of the battery and modems.
+A community-maintained chat bot for monitoring and controlling a regular LiveU Solo unit from Twitch chat.
+
+This project uses the same private web services as the regular
+[LiveU Solo portal](https://solo.liveu.tv/). It does not require the separate LiveU Central
+product. These services are not a public, supported Solo API and may change without notice.
 
 ## How do i run this?
 
-Just download the latest binary from [releases](https://github.com/715209/liveu_stats_bot/releases) and execute it.
+Just download the latest binary from [releases](https://github.com/BigChiefRick/liveu_stats_bot/releases) and execute it.
 
 ## Config
 
@@ -39,6 +43,11 @@ This config will be automatically generated upon running the binary and saved as
         "cooldown": 5,
         "stats": ["!lustats", "!liveustats", "!lus"],
         "battery": ["!battery", "!liveubattery", "!lub"],
+        "destinations": "!ludestinations",
+        "firmware": "!lufirmware",
+        "interfaces": "!luinterfaces",
+        "streamtools": "!lustreamtools",
+        "config": "!luconfig",
         "start": "!lustart",
         "stop": "!lustop",
         "restart": "!lurestart",
@@ -76,19 +85,29 @@ You can remove these settings from the config if you don't want them or replace 
 
 After running the app successfully you can use the following default commands in your chat:
 
-| Name    | Default command | Description                                        |
-| ------- | --------------- | -------------------------------------------------- |
-| stats   | !lus            | Shows the current connected modems and bitrate     |
-| battery | !lub            | Shows the current battery charge percentage        |
-| start   | !lustart        | Starts the stream (not the unit)                   |
-| stop    | !lustop         | Stops the stream                                   |
-| restart | !lurestart      | Restarts the stream                                |
-| reboot  | !lureboot       | Reboots the unit                                   |
-| delay   | !ludelay        | Toggles between low delay and high resiliency mode |
+| Name         | Default command   | Description                                                   |
+| ------------ | ----------------- | ------------------------------------------------------------- |
+| stats        | !lus              | Shows the current connected modems and bitrate                |
+| battery      | !lub              | Shows the current battery charge percentage                   |
+| destinations | !ludestinations   | Lists configured destinations and marks the selected one      |
+| firmware     | !lufirmware       | Shows the installed and selectable firmware versions          |
+| interfaces   | !luinterfaces     | Shows connected and disconnected network interfaces           |
+| streamtools  | !lustreamtools    | Shows the safe Stream Tools status when enabled                |
+| config       | !luconfig         | Shows a credential-free summary of the active unit config      |
+| start        | !lustart          | Starts the stream (not the unit)                               |
+| stop         | !lustop           | Stops the stream                                               |
+| restart      | !lurestart        | Restarts the stream                                            |
+| reboot       | !lureboot         | Reboots the unit                                               |
+| delay        | !ludelay          | Toggles between low delay and high resiliency mode             |
 
 You can add, delete or change the commands to whatever you want in `config.json` under the `commands` section.
 
-The start, stop and restart commands are only available to the channel owner or adminUsers.
+The start, stop, restart, reboot, and delay commands are only available to the channel owner or
+`adminUsers`.
+
+The status commands never print Wi-Fi passwords, APNs, destination credentials, stream keys,
+SRT passphrases, or LiveU access tokens. Stream Tools output is available only when that service
+is enabled for the selected Solo account and unit.
 
 ## Give specific users access to all commands
 
@@ -111,6 +130,10 @@ If your LiveU is online, streaming and you're using NGINX you'll see this in cha
 `Please note: if one of your connections is offline it will NOT show up at all in the stats.`
 
 ## Credits:
+[NOALBS/liveu_stats_bot](https://github.com/NOALBS/liveu_stats_bot): Original project and foundation for this maintained version.
+
+[BigChiefRick](https://github.com/BigChiefRick): Current maintenance and continued development.
+
 [Cinnabarcorp (travelingwithgus)](https://twitch.tv/travelwithgus): Initial Idea, Feedback, Use Case, and Q&A Testing.
 
 [B3ck](https://twitch.tv/b3ck): Feedback and Q&A Testing.
