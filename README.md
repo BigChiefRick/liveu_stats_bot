@@ -10,6 +10,20 @@ product. These services are not a public, supported Solo API and may change with
 
 Just download the latest binary from [releases](https://github.com/BigChiefRick/liveu_stats_bot/releases) and execute it.
 
+### Docker
+
+The image intentionally does not contain `config.json`. Mount your local configuration read-only
+when starting it:
+
+```sh
+docker run --rm \
+  -v /path/to/config.json:/app/config.json:ro \
+  rickmns/liveu_stats_bot:pr-2
+```
+
+Keeping the configuration outside the image prevents LiveU and Twitch credentials from being
+published in an image layer.
+
 ## Config
 
 This config will be automatically generated upon running the binary and saved as `config.json`.
