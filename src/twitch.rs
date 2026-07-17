@@ -135,7 +135,16 @@ impl Twitch {
                     timeout.store(false, Ordering::Release);
                 });
 
-                let res = if command == Command::Stats || command == Command::Battery {
+                let res = if matches!(
+                    command,
+                    Command::Stats
+                        | Command::Battery
+                        | Command::Destinations
+                        | Command::Firmware
+                        | Command::Interfaces
+                        | Command::StreamTools
+                        | Command::Config
+                ) {
                     self.handle_non_permission_commands(command).await
                 } else {
                     if !(is_owner || user_has_permission) {
@@ -158,6 +167,11 @@ impl Twitch {
         match command {
             Command::Stats => self.generate_liveu_modems_message().await,
             Command::Battery => self.generate_liveu_battery_message().await,
+            Command::Destinations => self.generate_liveu_destinations_message().await,
+            Command::Firmware => self.generate_liveu_firmware_message().await,
+            Command::Interfaces => self.generate_liveu_interfaces_message().await,
+            Command::StreamTools => self.generate_stream_tools_message().await,
+            Command::Config => self.generate_liveu_config_message().await,
             _ => unreachable!(),
         }
     }
@@ -182,6 +196,11 @@ impl Twitch {
         let config::Commands {
             stats,
             battery,
+            destinations,
+            firmware,
+            interfaces,
+            streamtools,
+            config,
             start,
             stop,
             restart,
@@ -196,6 +215,26 @@ impl Twitch {
 
         if battery.contains(&command) {
             return Command::Battery;
+        }
+
+        if destinations == &command {
+            return Command::Destinations;
+        }
+
+        if firmware == &command {
+            return Command::Firmware;
+        }
+
+        if interfaces == &command {
+            return Command::Interfaces;
+        }
+
+        if streamtools == &command {
+            return Command::StreamTools;
+        }
+
+        if config == &command {
+            return Command::Config;
         }
 
         if start == &command {
@@ -316,6 +355,58 @@ impl Twitch {
         );
 
         Ok(message)
+    }
+
+    async fn generate_liveu_destinations_message(&self) -> Result<String, Error> {
+        Ok(
+            match self.liveu.get_destinations(&self.liveu_boss_id).await {
+                Ok(destinations) => format_destinations(&destinations),
+                Err(_) => "LiveU destinations are temporarily unavailable".to_string(),
+            },
+        )
+    }
+
+    async fn generate_liveu_firmware_message(&self) -> Result<String, Error> {
+        Ok(
+            match self.liveu.get_firmware_info(&self.liveu_boss_id).await {
+                Ok(firmware) => format_firmware(&firmware),
+                Err(_) => "LiveU firmware information is temporarily unavailable".to_string(),
+            },
+        )
+    }
+
+    async fn generate_liveu_interfaces_message(&self) -> Result<String, Error> {
+        Ok(
+            match self
+                .liveu
+                .get_all_unit_custom_names(
+                    &self.liveu_boss_id,
+                    self.config.custom_port_names.clone(),
+                )
+                .await
+            {
+                Ok(interfaces) => format_interfaces(&interfaces),
+                Err(_) => "LiveU interfaces are temporarily unavailable".to_string(),
+            },
+        )
+    }
+
+    async fn generate_stream_tools_message(&self) -> Result<String, Error> {
+        Ok(
+            match self.liveu.get_stream_tools(&self.liveu_boss_id).await {
+                Ok(stream_tools) => format_stream_tools(&stream_tools),
+                Err(_) => "Stream Tools status is temporarily unavailable".to_string(),
+            },
+        )
+    }
+
+    async fn generate_liveu_config_message(&self) -> Result<String, Error> {
+        Ok(
+            match self.liveu.get_safe_unit_config(&self.liveu_boss_id).await {
+                Ok(config) => format_safe_config(&config),
+                Err(_) => "LiveU configuration is temporarily unavailable".to_string(),
+            },
+        )
     }
 
     async fn generate_liveu_start_message(&self, channel: String) -> Result<String, Error> {
@@ -459,10 +550,316 @@ impl Twitch {
     }
 }
 
+const MAX_CHAT_MESSAGE_CHARS: usize = 450;
+
+fn clean_chat_value(value: &str) -> String {
+    value
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(80)
+        .collect()
+}
+
+fn truncate_chat_message(message: String) -> String {
+    if message.chars().count() <= MAX_CHAT_MESSAGE_CHARS {
+        return message;
+    }
+
+    let mut shortened: String = message
+        .chars()
+        .take(MAX_CHAT_MESSAGE_CHARS.saturating_sub(3))
+        .collect();
+    shortened.push_str("...");
+    shortened
+}
+
+fn format_kbps(kbps: u32) -> String {
+    if kbps >= 1000 {
+        format!("{:.1} Mbps", kbps as f64 / 1000.0)
+    } else {
+        format!("{} Kbps", kbps)
+    }
+}
+
+fn format_destinations(destinations: &[liveu::Destination]) -> String {
+    if destinations.is_empty() {
+        return "LiveU destinations: none configured".to_string();
+    }
+
+    let visible = destinations
+        .iter()
+        .take(6)
+        .map(|destination| {
+            format!(
+                "{}{}",
+                clean_chat_value(&destination.name),
+                if destination.selected {
+                    " [selected]"
+                } else {
+                    ""
+                }
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(" • ");
+    let remaining = destinations.len().saturating_sub(6);
+    let suffix = if remaining > 0 {
+        format!(" • +{} more", remaining)
+    } else {
+        String::new()
+    };
+
+    truncate_chat_message(format!(
+        "LiveU destinations: {}{} — {} configured",
+        visible,
+        suffix,
+        destinations.len()
+    ))
+}
+
+fn format_firmware(firmware: &liveu::FirmwareInfo) -> String {
+    let current = firmware.current.as_deref().unwrap_or("unknown");
+    let alternatives: Vec<_> = firmware
+        .available
+        .iter()
+        .filter(|version| Some(version.as_str()) != firmware.current.as_deref())
+        .take(4)
+        .map(|version| clean_chat_value(version))
+        .collect();
+
+    if alternatives.is_empty() {
+        return format!(
+            "LiveU firmware: current {} • No alternate versions reported",
+            clean_chat_value(current)
+        );
+    }
+
+    let hidden = firmware
+        .available
+        .iter()
+        .filter(|version| Some(version.as_str()) != firmware.current.as_deref())
+        .count()
+        .saturating_sub(alternatives.len());
+    let suffix = if hidden > 0 {
+        format!(" +{} more", hidden)
+    } else {
+        String::new()
+    };
+
+    truncate_chat_message(format!(
+        "LiveU firmware: current {} • Selectable: {}{}",
+        clean_chat_value(current),
+        alternatives.join(", "),
+        suffix
+    ))
+}
+
+fn format_interfaces(interfaces: &[liveu::Interface]) -> String {
+    if interfaces.is_empty() {
+        return "LiveU interfaces: unavailable".to_string();
+    }
+
+    let mut total_kbps = 0;
+    let mut parts = Vec::new();
+    for interface in interfaces.iter().filter(|interface| interface.connected) {
+        total_kbps += interface.uplink_kbps;
+        let technology = if interface.technology.trim().is_empty() {
+            String::new()
+        } else {
+            format!(" {}", clean_chat_value(&interface.technology))
+        };
+        let roaming = if interface.is_currently_roaming {
+            " roaming"
+        } else {
+            ""
+        };
+        parts.push(format!(
+            "{} {}{}{}",
+            clean_chat_value(&interface.port),
+            format_kbps(interface.uplink_kbps),
+            technology,
+            roaming
+        ));
+    }
+
+    for interface in interfaces.iter().filter(|interface| !interface.connected) {
+        parts.push(format!(
+            "{} {}",
+            clean_chat_value(&interface.port),
+            if interface.enabled {
+                "disconnected"
+            } else {
+                "off"
+            }
+        ));
+    }
+
+    if total_kbps > 0 {
+        parts.push(format!("Total {}", format_kbps(total_kbps)));
+    }
+
+    truncate_chat_message(format!("LiveU links: {}", parts.join(" • ")))
+}
+
+fn format_video_bitrate(value: &str) -> String {
+    value
+        .parse::<f64>()
+        .ok()
+        .map(|value| {
+            if value >= 1000.0 {
+                format!("{:.1} Mbps", value / 1000.0)
+            } else {
+                format!("{} Kbps", value)
+            }
+        })
+        .unwrap_or_else(|| clean_chat_value(value))
+}
+
+fn format_audio_bitrate(value: &str) -> String {
+    value
+        .parse::<f64>()
+        .ok()
+        .map(|value| {
+            if value >= 1000.0 {
+                format!("{:.0} Kbps", value / 1000.0)
+            } else {
+                format!("{} Kbps", value)
+            }
+        })
+        .unwrap_or_else(|| clean_chat_value(value))
+}
+
+fn friendly_zone(zone: &str) -> &str {
+    match zone {
+        "us-vir-4" => "US Virginia",
+        "us-ore-4" => "US Oregon",
+        "eu-irl-4" | "eu-irl-1" => "EU Ireland",
+        "ap-syd-1" => "AP Sydney",
+        "ap-tok-1" => "AP Tokyo",
+        "ap-mum-1" => "AP Mumbai",
+        _ => zone,
+    }
+}
+
+fn format_stream_tools(stream_tools: &liveu::StreamToolsSummary) -> String {
+    if !stream_tools.enabled {
+        return "Stream Tools: not enabled for this Solo account or unit".to_string();
+    }
+
+    let mut parts = vec![if stream_tools.active {
+        "active".to_string()
+    } else {
+        "inactive".to_string()
+    }];
+    if let Some(zone) = &stream_tools.zone {
+        parts.push(friendly_zone(zone).to_string());
+    }
+    if let Some(profile) = &stream_tools.profile {
+        parts.push(clean_chat_value(profile));
+    }
+    if let Some(fps) = &stream_tools.fps {
+        parts.push(format!("{} fps", clean_chat_value(fps)));
+    }
+    if let Some(bitrate) = &stream_tools.video_bitrate {
+        parts.push(format!("Video {}", format_video_bitrate(bitrate)));
+    }
+    if let Some(bitrate) = &stream_tools.audio_bitrate {
+        parts.push(format!("Audio {}", format_audio_bitrate(bitrate)));
+    }
+    if stream_tools.destinations.is_empty() {
+        parts.push("No destinations".to_string());
+    } else {
+        parts.push(format!(
+            "Destinations {} ({}/3)",
+            stream_tools
+                .destinations
+                .iter()
+                .take(3)
+                .map(|name| clean_chat_value(name))
+                .collect::<Vec<_>>()
+                .join(" + "),
+            stream_tools.destinations.len().min(3)
+        ));
+    }
+    parts.push(format!(
+        "Logo {}",
+        if stream_tools.logo_enabled {
+            "on"
+        } else {
+            "off"
+        }
+    ));
+    parts.push(format!(
+        "Slate {}",
+        if stream_tools.fallback_slate_ready {
+            "ready"
+        } else {
+            "missing"
+        }
+    ));
+
+    truncate_chat_message(format!("Stream Tools: {}", parts.join(" • ")))
+}
+
+fn format_safe_config(config: &liveu::SafeUnitConfig) -> String {
+    let mut parts = Vec::new();
+    if let Some(name) = &config.name {
+        parts.push(clean_chat_value(name));
+    }
+    if let Some(model) = &config.model {
+        parts.push(clean_chat_value(model));
+    }
+    if let Some(status) = &config.status {
+        parts.push(clean_chat_value(status));
+    }
+    if let Some(destination) = &config.destination {
+        parts.push(format!("Destination {}", clean_chat_value(destination)));
+    }
+    if let Some(resolution) = &config.resolution {
+        let video = config
+            .bitrate
+            .map(|bitrate| {
+                format!(
+                    "{} @ {}",
+                    clean_chat_value(resolution),
+                    format_kbps(bitrate)
+                )
+            })
+            .unwrap_or_else(|| clean_chat_value(resolution));
+        parts.push(video);
+    }
+    if let Some(delay) = config.delay {
+        parts.push(match delay {
+            1000 => "Low Delay 1s".to_string(),
+            5000 => "High Resiliency 5s".to_string(),
+            delay => format!("Delay {:.1}s", delay as f64 / 1000.0),
+        });
+    }
+    if let Some(channels) = &config.audio_channels {
+        parts.push(format!("Audio {}ch", clean_chat_value(channels)));
+    }
+    if let Some(firmware) = &config.firmware {
+        parts.push(format!("Firmware {}", clean_chat_value(firmware)));
+    }
+
+    if parts.is_empty() {
+        "LiveU configuration is unavailable".to_string()
+    } else {
+        truncate_chat_message(format!("LiveU config: {}", parts.join(" • ")))
+    }
+}
+
 #[derive(PartialEq, Eq)]
 enum Command {
     Stats,
     Battery,
+    Destinations,
+    Firmware,
+    Interfaces,
+    StreamTools,
+    Config,
     Start,
     Stop,
     Restart,
@@ -514,5 +911,138 @@ impl DataUsedInThread {
 
         let msg = format!("LiveU streaming {} successfully", success);
         let _ = self.chat.say(self.channel.to_owned(), msg).await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        format_destinations, format_firmware, format_interfaces, format_safe_config,
+        format_stream_tools, MAX_CHAT_MESSAGE_CHARS,
+    };
+    use crate::liveu::{Destination, FirmwareInfo, Interface, SafeUnitConfig, StreamToolsSummary};
+
+    #[test]
+    fn formats_destinations_and_marks_the_selected_one() {
+        let destinations = vec![
+            Destination {
+                id: "one".to_string(),
+                name: "Twitch".to_string(),
+                provider: Some("Generic".to_string()),
+                selected: true,
+            },
+            Destination {
+                id: "two".to_string(),
+                name: "YouTube".to_string(),
+                provider: Some("YouTube".to_string()),
+                selected: false,
+            },
+        ];
+
+        assert_eq!(
+            format_destinations(&destinations),
+            "LiveU destinations: Twitch [selected] • YouTube — 2 configured"
+        );
+    }
+
+    #[test]
+    fn firmware_output_does_not_claim_an_update_is_required() {
+        let firmware = FirmwareInfo {
+            current: Some("v9.2.1".to_string()),
+            available: vec!["v9.1.0".to_string(), "v9.2.1".to_string()],
+        };
+
+        assert_eq!(
+            format_firmware(&firmware),
+            "LiveU firmware: current v9.2.1 • Selectable: v9.1.0"
+        );
+    }
+
+    #[test]
+    fn interface_output_includes_connected_and_disconnected_links() {
+        let interfaces = vec![
+            Interface {
+                connected: true,
+                name: "Ethernet".to_string(),
+                downlink_kbps: 0,
+                uplink_kbps: 8200,
+                enabled: true,
+                port: "ETH".to_string(),
+                technology: "Ethernet".to_string(),
+                up_signal_quality: 0,
+                down_signal_quality: 0,
+                active_sim: None,
+                is_currently_roaming: false,
+                kbps: 0,
+                signal_quality: 0,
+            },
+            Interface {
+                connected: false,
+                name: "Wi-Fi".to_string(),
+                downlink_kbps: 0,
+                uplink_kbps: 0,
+                enabled: true,
+                port: "WiFi".to_string(),
+                technology: String::new(),
+                up_signal_quality: 0,
+                down_signal_quality: 0,
+                active_sim: None,
+                is_currently_roaming: false,
+                kbps: 0,
+                signal_quality: 0,
+            },
+        ];
+
+        assert_eq!(
+            format_interfaces(&interfaces),
+            "LiveU links: ETH 8.2 Mbps Ethernet • WiFi disconnected • Total 8.2 Mbps"
+        );
+    }
+
+    #[test]
+    fn stream_tools_output_contains_only_status_fields() {
+        let stream_tools = StreamToolsSummary {
+            enabled: true,
+            active: true,
+            zone: Some("us-ore-4".to_string()),
+            profile: Some("1920 x 1080 Widescreen (16:9)".to_string()),
+            fps: Some("60".to_string()),
+            video_bitrate: Some("6000".to_string()),
+            audio_bitrate: Some("128000".to_string()),
+            destinations: vec!["Twitch".to_string(), "YouTube".to_string()],
+            logo_enabled: true,
+            fallback_slate_ready: true,
+        };
+        let output = format_stream_tools(&stream_tools);
+
+        assert!(output.contains("Stream Tools: active"));
+        assert!(output.contains("US Oregon"));
+        assert!(output.contains("Video 6.0 Mbps"));
+        assert!(output.contains("Audio 128 Kbps"));
+        assert!(output.contains("Twitch + YouTube (2/3)"));
+        assert!(output.chars().count() <= MAX_CHAT_MESSAGE_CHARS);
+    }
+
+    #[test]
+    fn safe_config_is_a_summary_not_a_raw_dump() {
+        let config = SafeUnitConfig {
+            name: Some("Travel Solo".to_string()),
+            model: Some("Solo PRO".to_string()),
+            status: Some("streaming".to_string()),
+            destination: Some("Twitch".to_string()),
+            resolution: Some("1920x1080".to_string()),
+            bitrate: Some(6000),
+            delay: Some(1000),
+            audio_channels: Some("2".to_string()),
+            firmware: Some("v9.2.1".to_string()),
+        };
+        let output = format_safe_config(&config);
+
+        assert_eq!(
+            output,
+            "LiveU config: Travel Solo • Solo PRO • streaming • Destination Twitch • 1920x1080 @ 6.0 Mbps • Low Delay 1s • Audio 2ch • Firmware v9.2.1"
+        );
+        assert!(!output.contains("password"));
+        assert!(!output.contains("stream_key"));
     }
 }
