@@ -59,7 +59,7 @@ This config will be automatically generated upon running the binary and saved as
         "battery": ["!battery", "!liveubattery", "!lub"],
         "destinations": "!ludestinations",
         "firmware": "!lufirmware",
-        "interfaces": "!luinterfaces",
+        "interfaces": "!lucarrier",
         "streamtools": "!lustreamtools",
         "config": "!luconfig",
         "start": "!lustart",
@@ -105,7 +105,7 @@ After running the app successfully you can use the following default commands in
 | battery      | !lub              | Shows the current battery charge percentage                   |
 | destinations | !ludestinations   | Lists configured destinations and marks the selected one      |
 | firmware     | !lufirmware       | Shows the installed and selectable firmware versions          |
-| interfaces   | !luinterfaces     | Shows connected and disconnected network interfaces           |
+| carrier      | !lucarrier        | Shows connected and disconnected network carriers/interfaces  |
 | streamtools  | !lustreamtools    | Shows the safe Stream Tools status when enabled                |
 | config       | !luconfig         | Shows a credential-free summary of the active unit config      |
 | start        | !lustart          | Starts the stream (not the unit)                               |

@@ -69,7 +69,7 @@ fn default_firmware_command() -> String {
 }
 
 fn default_interfaces_command() -> String {
-    "!luinterfaces".to_string()
+    "!lucarrier".to_string()
 }
 
 fn default_streamtools_command() -> String {
@@ -346,7 +346,7 @@ mod tests {
 
         assert_eq!(commands.destinations, "!ludestinations");
         assert_eq!(commands.firmware, "!lufirmware");
-        assert_eq!(commands.interfaces, "!luinterfaces");
+        assert_eq!(commands.interfaces, "!lucarrier");
         assert_eq!(commands.streamtools, "!lustreamtools");
         assert_eq!(commands.config, "!luconfig");
     }
