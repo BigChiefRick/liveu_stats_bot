@@ -43,11 +43,41 @@ pub struct Commands {
     pub cooldown: u16,
     pub stats: Vec<String>,
     pub battery: Vec<String>,
+    #[serde(default = "default_destinations_command")]
+    pub destinations: String,
+    #[serde(default = "default_firmware_command")]
+    pub firmware: String,
+    #[serde(default = "default_interfaces_command")]
+    pub interfaces: String,
+    #[serde(default = "default_streamtools_command")]
+    pub streamtools: String,
+    #[serde(default = "default_config_command")]
+    pub config: String,
     pub start: String,
     pub stop: String,
     pub restart: String,
     pub reboot: String,
     pub delay: String,
+}
+
+fn default_destinations_command() -> String {
+    "!ludestinations".to_string()
+}
+
+fn default_firmware_command() -> String {
+    "!lufirmware".to_string()
+}
+
+fn default_interfaces_command() -> String {
+    "!luinterfaces".to_string()
+}
+
+fn default_streamtools_command() -> String {
+    "!lustreamtools".to_string()
+}
+
+fn default_config_command() -> String {
+    "!luconfig".to_string()
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -183,6 +213,11 @@ impl Config {
                 "!liveubattery".to_string(),
                 "!lub".to_string(),
             ],
+            destinations: default_destinations_command(),
+            firmware: default_firmware_command(),
+            interfaces: default_interfaces_command(),
+            streamtools: default_streamtools_command(),
+            config: default_config_command(),
             start: "!lustart".to_string(),
             stop: "!lustop".to_string(),
             restart: "!lurestart".to_string(),
@@ -287,4 +322,32 @@ fn input_to_bool(confirm: &str) -> bool {
     }
 
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Commands;
+
+    #[test]
+    fn old_command_configs_receive_new_defaults() {
+        let commands: Commands = serde_json::from_str(
+            r#"{
+                "cooldown": 5,
+                "stats": ["!lus"],
+                "battery": ["!lub"],
+                "start": "!lustart",
+                "stop": "!lustop",
+                "restart": "!lurestart",
+                "reboot": "!lureboot",
+                "delay": "!ludelay"
+            }"#,
+        )
+        .expect("legacy command config should still deserialize");
+
+        assert_eq!(commands.destinations, "!ludestinations");
+        assert_eq!(commands.firmware, "!lufirmware");
+        assert_eq!(commands.interfaces, "!luinterfaces");
+        assert_eq!(commands.streamtools, "!lustreamtools");
+        assert_eq!(commands.config, "!luconfig");
+    }
 }
