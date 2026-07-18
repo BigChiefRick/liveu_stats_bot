@@ -105,7 +105,7 @@ After running the app successfully you can use the following default commands in
 | battery      | !lub              | Shows the current battery charge percentage                   |
 | destinations | !ludestinations   | Lists configured destinations and marks the selected one      |
 | firmware     | !lufirmware       | Shows the installed and selectable firmware versions          |
-| carrier      | !lucarrier        | Shows connected and disconnected network carriers/interfaces  |
+| carrier      | !lucarrier        | Shows carrier names, link rates, and connection technology     |
 | streamtools  | !lustreamtools    | Shows the safe Stream Tools status when enabled                |
 | config       | !luconfig         | Shows a credential-free summary of the active unit config      |
 | start        | !lustart          | Starts the stream (not the unit)                               |

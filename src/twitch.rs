@@ -658,36 +658,50 @@ fn format_firmware(firmware: &liveu::FirmwareInfo) -> String {
 
 fn format_interfaces(interfaces: &[liveu::Interface]) -> String {
     if interfaces.is_empty() {
-        return "LiveU interfaces: unavailable".to_string();
+        return "LiveU carriers: unavailable".to_string();
     }
 
     let mut total_kbps = 0;
     let mut parts = Vec::new();
     for interface in interfaces.iter().filter(|interface| interface.connected) {
         total_kbps += interface.uplink_kbps;
+        let carrier = if interface.name.trim().is_empty()
+            || interface_labels_match(&interface.name, &interface.port)
+        {
+            String::new()
+        } else {
+            format!(" {}", clean_chat_value(&interface.name))
+        };
         let technology = if interface.technology.trim().is_empty() {
+            String::new()
+        } else if interface_labels_match(&interface.technology, &interface.name)
+            || interface_labels_match(&interface.technology, &interface.port)
+        {
             String::new()
         } else {
             format!(" {}", clean_chat_value(&interface.technology))
         };
-        let roaming = if interface.is_currently_roaming {
-            " roaming"
-        } else {
-            ""
-        };
         parts.push(format!(
-            "{} {}{}{}",
+            "{}{} {}{}",
             clean_chat_value(&interface.port),
+            carrier,
             format_kbps(interface.uplink_kbps),
-            technology,
-            roaming
+            technology
         ));
     }
 
     for interface in interfaces.iter().filter(|interface| !interface.connected) {
+        let carrier = if interface.name.trim().is_empty()
+            || interface_labels_match(&interface.name, &interface.port)
+        {
+            String::new()
+        } else {
+            format!(" {}", clean_chat_value(&interface.name))
+        };
         parts.push(format!(
-            "{} {}",
+            "{}{} {}",
             clean_chat_value(&interface.port),
+            carrier,
             if interface.enabled {
                 "disconnected"
             } else {
@@ -700,7 +714,19 @@ fn format_interfaces(interfaces: &[liveu::Interface]) -> String {
         parts.push(format!("Total {}", format_kbps(total_kbps)));
     }
 
-    truncate_chat_message(format!("LiveU links: {}", parts.join(" • ")))
+    truncate_chat_message(format!("LiveU carriers: {}", parts.join(" • ")))
+}
+
+fn interface_labels_match(left: &str, right: &str) -> bool {
+    let normalize = |value: &str| {
+        value
+            .chars()
+            .filter(|character| character.is_ascii_alphanumeric())
+            .map(|character| character.to_ascii_lowercase())
+            .collect::<String>()
+    };
+
+    normalize(left) == normalize(right)
 }
 
 fn format_video_bitrate(value: &str) -> String {
@@ -959,7 +985,7 @@ mod tests {
     }
 
     #[test]
-    fn interface_output_includes_connected_and_disconnected_links() {
+    fn carrier_output_includes_carrier_names_without_duplicate_technology() {
         let interfaces = vec![
             Interface {
                 connected: true,
@@ -973,6 +999,21 @@ mod tests {
                 down_signal_quality: 0,
                 active_sim: None,
                 is_currently_roaming: false,
+                kbps: 0,
+                signal_quality: 0,
+            },
+            Interface {
+                connected: true,
+                name: "AT&T".to_string(),
+                downlink_kbps: 0,
+                uplink_kbps: 1500,
+                enabled: true,
+                port: "USB1".to_string(),
+                technology: "4G".to_string(),
+                up_signal_quality: 0,
+                down_signal_quality: 0,
+                active_sim: None,
+                is_currently_roaming: true,
                 kbps: 0,
                 signal_quality: 0,
             },
@@ -995,7 +1036,7 @@ mod tests {
 
         assert_eq!(
             format_interfaces(&interfaces),
-            "LiveU links: ETH 8.2 Mbps Ethernet • WiFi disconnected • Total 8.2 Mbps"
+            "LiveU carriers: ETH Ethernet 8.2 Mbps • USB1 AT&T 1.5 Mbps 4G • WiFi disconnected • Total 9.7 Mbps"
         );
     }
 
