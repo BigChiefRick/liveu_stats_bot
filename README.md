@@ -116,6 +116,10 @@ After running the app successfully you can use the following default commands in
 
 You can add, delete or change the commands to whatever you want in `config.json` under the `commands` section.
 
+With `twitch.modOnly` enabled, the bot accepts status commands from the channel owner,
+configured `adminUsers`, and Twitch users displaying either the Moderator (`moderator/1`)
+or Lead Moderator (`lead_moderator/1`) badge.
+
 The start, stop, restart, reboot, and delay commands are only available to the channel owner or
 `adminUsers`.
 
