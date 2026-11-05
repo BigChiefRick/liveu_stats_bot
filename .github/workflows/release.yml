@@ -11,10 +11,13 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: taiki-e/create-gh-release-action@v1
+        with:
+          draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   upload-assets:
+    needs: create-release
     strategy:
       matrix:
         os:
@@ -27,6 +30,7 @@ jobs:
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: liveu_stats_bot
+          locked: true
           tar: unix
           zip: windows
         env:
