@@ -17,6 +17,12 @@ use twitch_irc::{
 
 const OFFLINE_MSG: &str = "LiveU Offline :(";
 
+fn has_moderator_badge(badges: &[message::Badge]) -> bool {
+    badges.iter().any(|badge| {
+        badge.version == "1" && matches!(badge.name.as_str(), "moderator" | "lead_moderator")
+    })
+}
+
 pub struct Twitch {
     client: TwitchIRCClient<TCPTransport<TLS>, StaticLoginCredentials>,
     liveu: Liveu,
@@ -94,10 +100,7 @@ impl Twitch {
                     version: "1".to_string(),
                 });
 
-                let is_mod = msg.badges.contains(&twitch_irc::message::Badge {
-                    name: "moderator".to_string(),
-                    version: "1".to_string(),
-                });
+                let is_mod = has_moderator_badge(&msg.badges);
 
                 let mut user_has_permission = false;
 
@@ -944,9 +947,24 @@ impl DataUsedInThread {
 mod tests {
     use super::{
         format_destinations, format_firmware, format_interfaces, format_safe_config,
-        format_stream_tools, MAX_CHAT_MESSAGE_CHARS,
+        format_stream_tools, has_moderator_badge, MAX_CHAT_MESSAGE_CHARS,
     };
     use crate::liveu::{Destination, FirmwareInfo, Interface, SafeUnitConfig, StreamToolsSummary};
+
+    #[test]
+    fn accepts_regular_and_lead_moderator_badges() {
+        for (name, expected) in [
+            ("moderator", true),
+            ("lead_moderator", true),
+            ("vip", false),
+        ] {
+            let badge = twitch_irc::message::Badge {
+                name: name.to_string(),
+                version: "1".to_string(),
+            };
+            assert_eq!(has_moderator_badge(&[badge]), expected, "{name}");
+        }
+    }
 
     #[test]
     fn formats_destinations_and_marks_the_selected_one() {
